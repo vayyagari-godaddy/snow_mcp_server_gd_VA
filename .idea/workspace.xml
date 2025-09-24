@@ -4,7 +4,14 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="cc8bff32-7ab1-4eec-b70d-a2beedf90e03" name="Changes" comment="" />
+    <list default="true" id="cc8bff32-7ab1-4eec-b70d-a2beedf90e03" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.env" beforeDir="false" afterPath="$PROJECT_DIR$/.env" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PROTOCOL_FIX.md" beforeDir="false" afterPath="$PROJECT_DIR$/PROTOCOL_FIX.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server_fastmcp.py" beforeDir="false" afterPath="$PROJECT_DIR$/server_fastmcp.py" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -34,6 +41,7 @@
     "Python.create_inc_with_ci.executor": "Run",
     "Python.get_incident_tools.executor": "Run",
     "Python.get_kb_article.executor": "Run",
+    "Python.jwt_auth.executor": "Run",
     "Python.knowledge_tools.executor": "Run",
     "Python.observability_snow.executor": "Run",
     "Python.server.executor": "Run",

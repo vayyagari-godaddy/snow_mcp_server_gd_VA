@@ -1,0 +1,44 @@
+# ServiceNow MCP Server Environment Configuration Template
+# Copy this file to .env and update with your actual values
+
+# ==============================================
+# ServiceNow Connection Settings
+# ==============================================
+SERVICENOW_INSTANCE_URL=https://godaddydev.service-now.com
+
+# ==============================================
+# Authentication Options
+# ==============================================
+
+# Option 1: JWT Token Authentication (Recommended for Production)
+# Generate tokens using the generate_jwt_token tool, then set these:
+SERVICENOW_JWT_TOKEN=your_jwt_access_token_here
+SERVICENOW_REFRESH_TOKEN=your_jwt_refresh_token_here
+
+# Option 2: Username/Password Authentication (Fallback/Initial Setup)
+# Used when JWT tokens are not available or for initial token generation
+SERVICENOW_USERNAME=your_username_here
+SERVICENOW_PASSWORD=your_password_here
+
+# ==============================================
+# JWT Configuration (Optional)
+# ==============================================
+
+# JWT Secret Key for token signing (auto-generated if not provided)
+JWT_SECRET_KEY=m5vEBhHEBFXkPDlJCkssj9caP64eY4LR
+
+# JWT Algorithm (default: HS256)
+JWT_ALGORITHM=HS256
+
+# Token Expiration Settings
+JWT_EXPIRY_HOURS=24
+JWT_REFRESH_EXPIRY_DAYS=30
+
+# JWT Claims Configuration
+JWT_ISSUER=https://oauth.api.dev-godaddy.com
+JWT_AUDIENCE=6a4e6d3a-4129-408c-ae58-d8afdc977ae0
+
+# ==============================================
+# Logging Configuration
+# ==============================================
+LOG_LEVEL=INFO

@@ -8,6 +8,8 @@ A Model Context Protocol (MCP) server that enables Claude to interact with Servi
 - 📚 **Knowledge Base**: Search and retrieve knowledge base articles  
 - 🔍 **Specific Article Lookup**: Get detailed information for specific KB articles
 - 🔧 **Connection Testing**: Verify ServiceNow connectivity
+- 🔐 **JWT Authentication**: Secure token-based authentication with automatic refresh
+- 🛠️ **Token Management**: Generate, validate, and refresh JWT tokens
 - 📊 **Comprehensive Logging**: Detailed logging for troubleshooting
 
 ## Prerequisites
@@ -35,23 +37,35 @@ A Model Context Protocol (MCP) server that enables Claude to interact with Servi
 
 ## Configuration
 
-### 1. ServiceNow Credentials
+### 1. ServiceNow Authentication Configuration
 
-Create a `.env` file in the project root with your ServiceNow credentials:
+The server supports two authentication methods:
+
+#### JWT Authentication (Recommended)
+Create a `.env` file in the project root:
 
 ```bash
-# Copy the example file
-cp .env.example .env
+# Copy the template file
+cp env_template.txt .env
 
 # Edit with your actual credentials
 nano .env
 ```
 
-Add your ServiceNow credentials to the `.env` file:
+**Initial Setup with Username/Password:**
 ```env
-SNOW_INSTANCE_URL=https://your-instance.service-now.com
-SNOW_USERNAME=your_username_here
-SNOW_PASSWORD=your_password_here
+SERVICENOW_INSTANCE_URL=https://your-instance.service-now.com
+SERVICENOW_USERNAME=your_username_here
+SERVICENOW_PASSWORD=your_password_here
+LOG_LEVEL=INFO
+```
+
+**Production Setup with JWT Tokens:**
+```env
+SERVICENOW_INSTANCE_URL=https://your-instance.service-now.com
+SERVICENOW_JWT_TOKEN=your_jwt_access_token_here
+SERVICENOW_REFRESH_TOKEN=your_jwt_refresh_token_here
+JWT_SECRET_KEY=your_secure_secret_key_here
 LOG_LEVEL=INFO
 ```
 
@@ -109,7 +123,9 @@ python server.py
 
 ### Available Tools
 
-#### 1. Get ServiceNow Incidents
+#### ServiceNow Data Tools
+
+##### 1. Get ServiceNow Incidents
 ```python
 # Example usage in Claude:
 get_servicenow_incidents({
@@ -119,7 +135,7 @@ get_servicenow_incidents({
 })
 ```
 
-#### 2. Search Knowledge Base
+##### 2. Search Knowledge Base
 ```python
 # Example usage in Claude:
 search_knowledge_base({
@@ -128,7 +144,7 @@ search_knowledge_base({
 })
 ```
 
-#### 3. Get Specific Knowledge Article
+##### 3. Get Specific Knowledge Article
 ```python
 # Example usage in Claude:
 get_knowledge_article({
@@ -136,11 +152,95 @@ get_knowledge_article({
 })
 ```
 
-#### 4. Test Connection
+##### 4. Test Connection
 ```python
 # Example usage in Claude:
 test_connection()
 ```
+
+#### JWT Authentication Tools
+
+##### 5. Generate JWT Token
+```python
+# Generate initial JWT tokens using username/password
+generate_jwt_token({
+  "username": "your_username",
+  "password": "your_password",
+  "instance_url": "https://your-instance.service-now.com"
+})
+```
+
+##### 6. Validate JWT Token
+```python
+# Validate and get information about a JWT token
+validate_jwt_token({
+  "token": "your_jwt_token_here"
+})
+```
+
+##### 7. Refresh JWT Token
+```python
+# Generate new access token using refresh token
+refresh_jwt_token({
+  "refresh_token": "your_refresh_token_here"
+})
+```
+
+##### 8. Get JWT Token Info
+```python
+# Get token details without full validation
+get_jwt_token_info({
+  "token": "your_jwt_token_here"
+})
+```
+
+## JWT Authentication Workflow
+
+### Setting Up JWT Authentication
+
+1. **Initial Setup (First Time)**
+   ```bash
+   # Set up initial credentials in .env
+   SERVICENOW_INSTANCE_URL=https://your-instance.service-now.com
+   SERVICENOW_USERNAME=your_username
+   SERVICENOW_PASSWORD=your_password
+   ```
+
+2. **Generate JWT Tokens**
+   ```python
+   # Use Claude to generate tokens
+   generate_jwt_token({
+     "username": "your_username",
+     "password": "your_password"
+   })
+   ```
+
+3. **Update Configuration for Production**
+   ```bash
+   # Update .env with generated tokens
+   SERVICENOW_JWT_TOKEN=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
+   SERVICENOW_REFRESH_TOKEN=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
+   
+   # Optional: Remove username/password for security
+   # SERVICENOW_USERNAME=
+   # SERVICENOW_PASSWORD=
+   ```
+
+4. **Token Management**
+   - Tokens expire automatically (default: 24 hours for access tokens)
+   - Use `validate_jwt_token()` to check token status
+   - Use `refresh_jwt_token()` to renew expired tokens
+   - Use `get_jwt_token_info()` to inspect token details
+
+### JWT Security Best Practices
+
+- ✅ **Use environment variables** for token storage
+- ✅ **Rotate tokens regularly** using refresh functionality
+- ✅ **Set strong JWT secret keys** in production
+- ✅ **Monitor token expiration** and refresh proactively
+- ❌ **Never commit tokens** to version control
+- ❌ **Don't share tokens** between environments
+- ❌ **Avoid logging tokens** in production
 
 ## Troubleshooting
 
@@ -152,9 +252,14 @@ test_connection()
    - Ensure all credentials are correctly set
 
 2. **ServiceNow Authentication Errors**
-   - Verify your ServiceNow credentials in `.env` file
-   - Check that your ServiceNow user has API access permissions
-   - Confirm the instance URL format (should include https://)
+   - **JWT Token Issues**:
+     - Verify JWT token hasn't expired using `validate_jwt_token()`
+     - Refresh expired tokens using `refresh_jwt_token()`
+     - Check JWT secret key is set correctly
+   - **Username/Password Issues**:
+     - Verify your ServiceNow credentials in `.env` file
+     - Check that your ServiceNow user has API access permissions
+     - Confirm the instance URL format (should include https://)
 
 3. **Module Import Errors**
    - Ensure virtual environment is activated

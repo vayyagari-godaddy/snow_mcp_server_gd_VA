@@ -11,6 +11,7 @@ import logging
 import asyncio
 from typing import Any, Dict, List, Optional
 from datetime import datetime
+import json
 
 # Load environment variables from .env file
 try:
@@ -29,6 +30,9 @@ except ImportError as e:
     logging.error(f"Failed to import ServiceNow API tools: {e}")
     raise
 
+# Import JWT authentication module
+from jwt_auth import jwt_auth, create_initial_tokens
+
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
@@ -40,28 +44,62 @@ logger = logging.getLogger(__name__)
 snow_connection = None
 
 def get_snow_connection():
-    """Get or create ServiceNow connection"""
+    """Get or create ServiceNow connection using JWT authentication"""
     global snow_connection
     if snow_connection is None:
-        # Load credentials from environment variables
+        # Load configuration from environment variables
         instance_url = os.getenv('SERVICENOW_INSTANCE_URL')
-        username = os.getenv('SERVICENOW_USERNAME')  
-        password = os.getenv('SERVICENOW_PASSWORD')
         
-        if not all([instance_url, username, password]):
-            raise ValueError(
-                "Missing ServiceNow credentials. Please set SERVICENOW_INSTANCE_URL, "
-                "SERVICENOW_USERNAME, and SERVICENOW_PASSWORD environment variables."
+        # Check for JWT token first, fallback to username/password for initial setup
+        access_token = os.getenv('SERVICENOW_JWT_TOKEN')
+        
+        if access_token:
+            # Use JWT token authentication
+            try:
+                # Validate token and extract user info
+                token_payload = jwt_auth.validate_token(access_token)
+                username = token_payload.get('sub')
+                
+                logger.info(f"Using JWT authentication for user: {username}")
+                
+                # Create ServiceNow connection with JWT token
+                # Note: This assumes the ObservabilityServiceNow class supports JWT tokens
+                # You may need to modify the API class or use token-based authentication
+                snow_connection = ObservabilityServiceNow(
+                    username=username,
+                    password=None,  # Not needed with JWT
+                    client_id='e78a061f7cd346388b10be87a08a5a86',
+                    client_secret='7nsw$|SMZx',
+                    servicenow_api_url=instance_url,
+                    access_token=access_token  # Pass JWT token if supported
+                )
+                
+            except Exception as e:
+                logger.error(f"JWT token validation failed: {e}")
+                logger.info("Falling back to username/password authentication")
+                access_token = None
+        
+        if not access_token:
+            # Fallback to username/password authentication
+            username = os.getenv('SERVICENOW_USERNAME')  
+            password = os.getenv('SERVICENOW_PASSWORD')
+            
+            if not all([instance_url, username, password]):
+                raise ValueError(
+                    "Missing ServiceNow credentials. Please set either SERVICENOW_JWT_TOKEN or "
+                    "SERVICENOW_INSTANCE_URL, SERVICENOW_USERNAME, and SERVICENOW_PASSWORD environment variables."
+                )
+            
+            logger.info(f"Using username/password authentication for user: {username}")
+            
+            # Create ServiceNow connection using traditional auth
+            snow_connection = ObservabilityServiceNow(
+                username=username,
+                password=password,
+                client_id='e78a061f7cd346388b10be87a08a5a86',
+                client_secret='7nsw$|SMZx',
+                servicenow_api_url=instance_url
             )
-        
-        # Create ServiceNow connection using ObservabilityServiceNow class
-        snow_connection = ObservabilityServiceNow(
-            username=username,
-            password=password,
-            client_id='e78a061f7cd346388b10be87a08a5a86',
-            client_secret='7nsw$|SMZx',
-            servicenow_api_url=instance_url
-        )
     
     return snow_connection
 
@@ -234,6 +272,179 @@ def get_knowledge_article(article_id: str) -> Dict[str, Any]:
         }
 
 @mcp.tool()
+def generate_jwt_token(
+    username: str,
+    password: str,
+    instance_url: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Generate JWT tokens for ServiceNow authentication.
+    
+    This tool creates access and refresh tokens that can be used instead of username/password.
+    Store the tokens securely and use them in environment variables for subsequent connections.
+    
+    Args:
+        username: ServiceNow username
+        password: ServiceNow password (used only for initial token generation)
+        instance_url: ServiceNow instance URL (optional, will use env var if not provided)
+        
+    Returns:
+        Dictionary containing JWT tokens and metadata
+    """
+    try:
+        # Use provided instance URL or fall back to environment variable
+        snow_instance = instance_url or os.getenv('SERVICENOW_INSTANCE_URL')
+        
+        if not snow_instance:
+            raise ValueError("ServiceNow instance URL is required")
+        
+        # Create initial tokens
+        tokens = create_initial_tokens(
+            username=username,
+            password=password,  # In production, validate this against ServiceNow first
+            instance_url=snow_instance,
+            client_id='e78a061f7cd346388b10be87a08a5a86'
+        )
+        
+        result = {
+            "success": True,
+            "message": "JWT tokens generated successfully",
+            "tokens": tokens,
+            "usage_instructions": {
+                "access_token": "Set as SERVICENOW_JWT_TOKEN environment variable",
+                "refresh_token": "Store securely for token renewal",
+                "expires_in_hours": jwt_auth.token_expiry_hours,
+                "refresh_expires_in_days": jwt_auth.refresh_token_expiry_days
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        logger.info(f"Generated JWT tokens for user: {username}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error generating JWT token: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+@mcp.tool()
+def validate_jwt_token(token: str) -> Dict[str, Any]:
+    """
+    Validate a JWT token and return its information.
+    
+    Args:
+        token: JWT token string to validate
+        
+    Returns:
+        Dictionary containing token validation results and information
+    """
+    try:
+        # Validate token
+        payload = jwt_auth.validate_token(token)
+        
+        # Get detailed token information
+        token_info = jwt_auth.get_token_info(token)
+        
+        result = {
+            "success": True,
+            "message": "JWT token is valid",
+            "token_info": token_info,
+            "payload": {
+                "username": payload.get('sub'),
+                "instance_url": payload.get('snow_instance'),
+                "token_type": payload.get('type'),
+                "issuer": payload.get('iss'),
+                "audience": payload.get('aud')
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        logger.info(f"Validated JWT token for user: {payload.get('sub')}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error validating JWT token: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+@mcp.tool()
+def refresh_jwt_token(refresh_token: str) -> Dict[str, Any]:
+    """
+    Refresh JWT tokens using a valid refresh token.
+    
+    Args:
+        refresh_token: Valid refresh token string
+        
+    Returns:
+        Dictionary containing new access and refresh tokens
+    """
+    try:
+        # Refresh tokens
+        new_tokens = jwt_auth.refresh_token(refresh_token)
+        
+        result = {
+            "success": True,
+            "message": "JWT tokens refreshed successfully",
+            "tokens": new_tokens,
+            "usage_instructions": {
+                "access_token": "Update SERVICENOW_JWT_TOKEN environment variable",
+                "refresh_token": "Store the new refresh token securely",
+                "expires_in_hours": jwt_auth.token_expiry_hours
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        logger.info("JWT tokens refreshed successfully")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error refreshing JWT token: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+@mcp.tool()
+def get_jwt_token_info(token: str) -> Dict[str, Any]:
+    """
+    Get information about a JWT token without validation.
+    
+    This tool provides token details even for expired tokens.
+    
+    Args:
+        token: JWT token string
+        
+    Returns:
+        Dictionary containing token information
+    """
+    try:
+        token_info = jwt_auth.get_token_info(token)
+        
+        result = {
+            "success": True,
+            "token_info": token_info,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        logger.info(f"Retrieved JWT token info for user: {token_info.get('username')}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error getting JWT token info: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+@mcp.tool()
 def test_connection() -> Dict[str, Any]:
     """
     Test the ServiceNow connection.
@@ -278,3 +489,4 @@ if __name__ == "__main__":
     # Run the server
     logger.info("Starting ServiceNow MCP Server with FastMCP...")
     mcp.run()
+

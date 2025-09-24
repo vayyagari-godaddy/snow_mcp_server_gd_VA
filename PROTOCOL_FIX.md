@@ -56,3 +56,4 @@ def get_servicenow_incidents(state: Optional[str] = None, ...):
 3. **📋 TODO**: Test ServiceNow tools - should now work without JSON-RPC errors!
 
 The server is now using the **proper MCP implementation pattern** that Claude Desktop expects. This should resolve the JSON-RPC "Invalid request parameters" error completely.
+
