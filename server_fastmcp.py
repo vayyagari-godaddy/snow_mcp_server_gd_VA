@@ -37,6 +37,13 @@ except ImportError as e:
     logging.warning(f"Failed to import httpx-based ServiceNow client: {e}")
     create_servicenow_client_httpx = None
 
+# Import our working wrapper
+try:
+    from observability_snow_wrapper import ObservabilityServiceNowWrapper
+except ImportError as e:
+    logging.warning(f"Failed to import ObservabilityServiceNowWrapper: {e}")
+    ObservabilityServiceNowWrapper = None
+
 # Import JWT authentication module
 from jwt_auth import jwt_auth, create_initial_tokens
 
@@ -69,17 +76,31 @@ def get_snow_connection():
                 
                 logger.info(f"Using JWT authentication for user: {username}")
                 
-                # Create ServiceNow connection with JWT token
-                # Note: This assumes the ObservabilityServiceNow class supports JWT tokens
-                # You may need to modify the API class or use token-based authentication
-                snow_connection = ObservabilityServiceNow(
-                    username=username,
-                    password=None,  # Not needed with JWT
-                    client_id=os.getenv('JWT_CLIENT_ID'),
-                    client_secret=os.getenv('JWT_CLIENT_SECRET'),
-                    servicenow_api_url=instance_url,
-                    # Pass JWT token if supported
-                )
+                # Try the working wrapper first
+                if ObservabilityServiceNowWrapper:
+                    try:
+                        snow_connection = ObservabilityServiceNowWrapper(
+                            username=username,
+                            password=None,  # Not needed with JWT
+                            client_id=os.getenv('JWT_CLIENT_ID'),
+                            client_secret=os.getenv('JWT_CLIENT_SECRET'),
+                            servicenow_api_url=instance_url
+                        )
+                        logger.info("Successfully created ServiceNow connection with working wrapper (JWT)")
+                    except Exception as e:
+                        logger.warning(f"Working wrapper failed with JWT: {e}")
+                        snow_connection = None
+                
+                # Fallback to original client if wrapper failed
+                if snow_connection is None:
+                    snow_connection = ObservabilityServiceNow(
+                        username=username,
+                        password=None,  # Not needed with JWT
+                        client_id=os.getenv('JWT_CLIENT_ID'),
+                        client_secret=os.getenv('JWT_CLIENT_SECRET'),
+                        servicenow_api_url=instance_url,
+                    )
+                    logger.info("Successfully created ServiceNow connection with original client (JWT)")
                 
             except Exception as e:
                 logger.error(f"JWT token validation failed: {e}")
@@ -88,7 +109,7 @@ def get_snow_connection():
         
         if not access_token:
             # Fallback to username/password authentication
-            username = os.getenv('SERVICENOW_USERNAME')  
+            username = os.getenv('SERVICENOW_USERNAME')
             password = os.getenv('SERVICENOW_PASSWORD')
             
             if not all([instance_url, username, password]):
@@ -99,30 +120,45 @@ def get_snow_connection():
             
             logger.info(f"Using username/password authentication for user: {username}")
             
-            # Try the original client first, fallback to httpx client if it fails
-            try:
-                # Create ServiceNow connection using traditional auth
-                snow_connection = ObservabilityServiceNow(
-                    username=username,
-                    password=password,
-                    client_id='e78a061f7cd346388b10be87a08a5a86',
-                    client_secret='7nsw$|SMZx',
-                    servicenow_api_url=instance_url
-                )
-                logger.info("Successfully created ServiceNow connection with original client")
-            except Exception as e:
-                logger.warning(f"Original ServiceNow client failed: {e}")
-                logger.info("Falling back to httpx-based client")
-                
-                # Use our custom httpx-based client as fallback
-                if create_servicenow_client_httpx:
-                    snow_connection = create_servicenow_client_httpx()
-                    if snow_connection:
-                        logger.info("Successfully created ServiceNow connection with httpx client")
+            # Try the working wrapper first
+            if ObservabilityServiceNowWrapper:
+                try:
+                    snow_connection = ObservabilityServiceNowWrapper(
+                        username=username,
+                        password=password,
+                        client_id=os.getenv('JWT_CLIENT_ID'),
+                        client_secret=os.getenv('JWT_CLIENT_SECRET'),
+                        servicenow_api_url=instance_url
+                    )
+                    logger.info("Successfully created ServiceNow connection with working wrapper")
+                except Exception as e:
+                    logger.warning(f"Working wrapper failed: {e}")
+                    snow_connection = None
+            
+            # Fallback to original client if wrapper failed
+            if snow_connection is None:
+                try:
+                    snow_connection = ObservabilityServiceNow(
+                        username=username,
+                        password=password,
+                        client_id=os.getenv('JWT_CLIENT_ID'),
+                        client_secret=os.getenv('JWT_CLIENT_SECRET'),
+                        servicenow_api_url=instance_url
+                    )
+                    logger.info("Successfully created ServiceNow connection with original client")
+                except Exception as e:
+                    logger.warning(f"Original ServiceNow client failed: {e}")
+                    logger.info("Falling back to httpx-based client")
+                    
+                    # Use our custom httpx-based client as final fallback
+                    if create_servicenow_client_httpx:
+                        snow_connection = create_servicenow_client_httpx()
+                        if snow_connection:
+                            logger.info("Successfully created ServiceNow connection with httpx client")
+                        else:
+                            raise ValueError("Failed to create httpx-based ServiceNow client")
                     else:
-                        raise ValueError("Failed to create httpx-based ServiceNow client")
-                else:
-                    raise ValueError("httpx-based client not available and original client failed")
+                        raise ValueError("All ServiceNow clients failed and no fallback available")
     
     return snow_connection
 
