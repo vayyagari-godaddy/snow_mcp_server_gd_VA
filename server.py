@@ -56,7 +56,9 @@ snow_connection = None
 
 def get_snow_connection():
     """Get or create ServiceNow connection"""
+
     global snow_connection
+    
     if snow_connection is None:
         # Load credentials from environment variables
         instance_url = os.getenv('SERVICENOW_INSTANCE_URL')
