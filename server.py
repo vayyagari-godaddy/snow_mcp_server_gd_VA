@@ -29,6 +29,13 @@ except ImportError as e:
     logging.error(f"Failed to import ServiceNow API tools: {e}")
     raise
 
+# Import our custom httpx-based client as fallback
+try:
+    from servicenow_client_httpx import create_servicenow_client_httpx
+except ImportError as e:
+    logging.warning(f"Failed to import httpx-based ServiceNow client: {e}")
+    create_servicenow_client_httpx = None
+
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
@@ -38,6 +45,7 @@ logger = logging.getLogger(__name__)
 
 # ServiceNow connection instance
 snow_connection = None
+
 
 def get_snow_connection():
     """Get or create ServiceNow connection"""
@@ -54,14 +62,30 @@ def get_snow_connection():
                 "SERVICENOW_USERNAME, and SERVICENOW_PASSWORD environment variables."
             )
         
-        # Create ServiceNow connection using ObservabilityServiceNow class
-        snow_connection = ObservabilityServiceNow(
-            username=username,
-            password=password,
-            client_id=os.getenv('JWT_CLIENT_ID', 'default_client_id'),
-            client_secret=os.getenv('JWT_CLIENT_SECRET', 'default_secret'),
-            servicenow_api_url=instance_url
-        )
+        # Try the original client first, fallback to httpx client if it fails
+        try:
+            # Create ServiceNow connection using ObservabilityServiceNow class
+            snow_connection = ObservabilityServiceNow(
+                username=username,
+                password=password,
+                client_id=os.getenv('JWT_CLIENT_ID', 'default_client_id'),
+                client_secret=os.getenv('JWT_CLIENT_SECRET', 'default_secret'),
+                servicenow_api_url=instance_url
+            )
+            logger.info("Successfully created ServiceNow connection with original client")
+        except Exception as e:
+            logger.warning(f"Original ServiceNow client failed: {e}")
+            logger.info("Falling back to httpx-based client")
+            
+            # Use our custom httpx-based client as fallback
+            if create_servicenow_client_httpx:
+                snow_connection = create_servicenow_client_httpx()
+                if snow_connection:
+                    logger.info("Successfully created ServiceNow connection with httpx client")
+                else:
+                    raise ValueError("Failed to create httpx-based ServiceNow client")
+            else:
+                raise ValueError("httpx-based client not available and original client failed")
     
     return snow_connection
 
@@ -244,24 +268,31 @@ def test_connection() -> Dict[str, Any]:
     try:
         connection = get_snow_connection()
         
-        # Test connection with a simple query to incidents table
-        test_response, headers, status_code = connection.get_table(
-            table="incident",
-            rows=1
-        )
-        
-        if status_code != 200:
-            raise Exception(f"Connection test failed: HTTP {status_code}")
+        # Check if it's our httpx client or the original client
+        if hasattr(connection, 'test_connection'):
+            # It's our httpx client
+            result = connection.test_connection()
+            result["timestamp"] = datetime.now().isoformat()
+            return result
+        else:
+            # It's the original client - use the old method
+            test_response, headers, status_code = connection.get_table(
+                table="incident",
+                rows=1
+            )
             
-        result = {
-            "success": True,
-            "message": "ServiceNow connection is working",
-            "connection_details": {
-                "instance_url": os.getenv('SERVICENOW_INSTANCE_URL'),
-                "username": os.getenv('SERVICENOW_USERNAME'),
-            },
-            "timestamp": datetime.now().isoformat()
-        }
+            if status_code != 200:
+                raise Exception(f"Connection test failed: HTTP {status_code}")
+                
+            result = {
+                "success": True,
+                "message": "ServiceNow connection is working",
+                "connection_details": {
+                    "instance_url": os.getenv('SERVICENOW_INSTANCE_URL'),
+                    "username": os.getenv('SERVICENOW_USERNAME'),
+                },
+                "timestamp": datetime.now().isoformat()
+            }
         
         logger.info("ServiceNow connection test successful")
         return result
