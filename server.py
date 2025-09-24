@@ -57,43 +57,58 @@ snow_connection = None
 def get_snow_connection():
     """Get or create ServiceNow connection"""
     global snow_connection
-    # if snow_connection is None:
-    #     # Load credentials from environment variables
-    #     instance_url = os.getenv('SERVICENOW_INSTANCE_URL')
-    #     username = os.getenv('SERVICENOW_USERNAME')
-    #     password = os.getenv('SERVICENOW_PASSWORD')
-    #
-    #     if not all([instance_url, username, password]):
-    #         raise ValueError(
-    #             "Missing ServiceNow credentials. Please set SERVICENOW_INSTANCE_URL, "
-    #             "SERVICENOW_USERNAME, and SERVICENOW_PASSWORD environment variables."
-    #         )
-    #
-    #     # Try the original client first, fallback to httpx client if it fails
-    #     try:
-    #         # Create ServiceNow connection using ObservabilityServiceNow class
-    #         snow_connection = ObservabilityServiceNow(
-    #             username=username,
-    #             password=password,
-    #             client_id=os.getenv('JWT_CLIENT_ID', 'default_client_id'),
-    #             client_secret=os.getenv('JWT_CLIENT_SECRET', 'default_secret'),
-    #             servicenow_api_url=instance_url
-    #         )
-    #         logger.info("Successfully created ServiceNow connection with original client")
-    #     except Exception as e:
-    #         logger.warning(f"Original ServiceNow client failed: {e}")
-    #         logger.info("Falling back to httpx-based client")
-    #
-    #         # Use our custom httpx-based client as fallback
-    #         if create_servicenow_client_httpx:
-    #             snow_connection = create_servicenow_client_httpx()
-    #             if snow_connection:
-    #                 logger.info("Successfully created ServiceNow connection with httpx client")
-    #             else:
-    #                 raise ValueError("Failed to create httpx-based ServiceNow client")
-    #         else:
-    #             raise ValueError("httpx-based client not available and original client failed")
-    #
+    if snow_connection is None:
+        # Load credentials from environment variables
+        instance_url = os.getenv('SERVICENOW_INSTANCE_URL')
+        username = os.getenv('SERVICENOW_USERNAME')
+        password = os.getenv('SERVICENOW_PASSWORD')
+        
+        if not all([instance_url, username, password]):
+            raise ValueError(
+                "Missing ServiceNow credentials. Please set SERVICENOW_INSTANCE_URL, "
+                "SERVICENOW_USERNAME, and SERVICENOW_PASSWORD environment variables."
+            )
+        
+        # Try the working wrapper first
+        if ObservabilityServiceNowWrapper:
+            try:
+                snow_connection = ObservabilityServiceNowWrapper(
+                    username=username,
+                    password=password,
+                    client_id=os.getenv('JWT_CLIENT_ID'),
+                    client_secret=os.getenv('JWT_CLIENT_SECRET'),
+                    servicenow_api_url=instance_url
+                )
+                logger.info("Successfully created ServiceNow connection with working wrapper")
+            except Exception as e:
+                logger.warning(f"Working wrapper failed: {e}")
+                snow_connection = None
+        
+        # Fallback to original client if wrapper failed
+        if snow_connection is None:
+            try:
+                snow_connection = ObservabilityServiceNow(
+                    username=username,
+                    password=password,
+                    client_id=os.getenv('JWT_CLIENT_ID', 'default_client_id'),
+                    client_secret=os.getenv('JWT_CLIENT_SECRET', 'default_secret'),
+                    servicenow_api_url=instance_url
+                )
+                logger.info("Successfully created ServiceNow connection with original client")
+            except Exception as e:
+                logger.warning(f"Original ServiceNow client failed: {e}")
+                logger.info("Falling back to httpx-based client")
+                
+                # Use our custom httpx-based client as final fallback
+                if create_servicenow_client_httpx:
+                    snow_connection = create_servicenow_client_httpx()
+                    if snow_connection:
+                        logger.info("Successfully created ServiceNow connection with httpx client")
+                    else:
+                        raise ValueError("Failed to create httpx-based ServiceNow client")
+                else:
+                    raise ValueError("All ServiceNow clients failed and no fallback available")
+    
     return snow_connection
 
 # Initialize FastMCP server
