@@ -7,14 +7,21 @@ for secure authentication with ServiceNow instances.
 """
 
 import os
-import jwt
+#import jwt  # type: ignore
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
+
+import jwt
 
 logger = logging.getLogger(__name__)
+
+
+def _generate_secret_key() -> str:
+    """Generate a secure random secret key for JWT signing"""
+    import secrets
+    return secrets.token_urlsafe(32)
+
 
 class JWTAuthManager:
     """JWT Authentication Manager for ServiceNow connections"""
@@ -22,7 +29,7 @@ class JWTAuthManager:
     def __init__(self):
         """Initialize JWT Auth Manager with configuration from environment"""
         # JWT Configuration from environment variables
-        self.secret_key = os.getenv('JWT_SECRET_KEY')
+        self.secret_key = os.getenv('JWT_CLIENT_SECRET')
         self.algorithm = os.getenv('JWT_ALGORITHM', 'HS256')
         self.token_expiry_hours = int(os.getenv('JWT_EXPIRY_HOURS', '24'))
         self.refresh_token_expiry_days = int(os.getenv('JWT_REFRESH_EXPIRY_DAYS', '30'))
@@ -33,15 +40,10 @@ class JWTAuthManager:
         
         # Auto-generate secret key if not provided
         if not self.secret_key:
-            self.secret_key = self._generate_secret_key()
+            self.secret_key = _generate_secret_key()
             logger.warning("JWT_SECRET_KEY not found in environment. Generated a temporary key. "
                           "For production, set JWT_SECRET_KEY environment variable.")
-    
-    def _generate_secret_key(self) -> str:
-        """Generate a secure random secret key for JWT signing"""
-        import secrets
-        return secrets.token_urlsafe(32)
-    
+
     def generate_token(self, user_info: Dict[str, Any], token_type: str = 'access') -> str:
         """
         Generate JWT token for ServiceNow authentication

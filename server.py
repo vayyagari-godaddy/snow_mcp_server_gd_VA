@@ -58,8 +58,8 @@ def get_snow_connection():
         snow_connection = ObservabilityServiceNow(
             username=username,
             password=password,
-            client_id='e78a061f7cd346388b10be87a08a5a86',
-            client_secret='7nsw$|SMZx',
+            client_id=os.getenv('JWT_CLIENT_ID', 'default_client_id'),
+            client_secret=os.getenv('JWT_CLIENT_SECRET', 'default_secret'),
             servicenow_api_url=instance_url
         )
     
@@ -277,4 +277,6 @@ def test_connection() -> Dict[str, Any]:
 if __name__ == "__main__":
     # Run the server
     logger.info("Starting ServiceNow MCP Server with FastMCP...")
-    mcp.run()
+    # Use stdio for Claude Desktop compatibility
+    import asyncio
+    asyncio.run(mcp.run_stdio_async())

@@ -51,8 +51,8 @@ def get_snow_connection():
         instance_url = os.getenv('SERVICENOW_INSTANCE_URL')
         
         # Check for JWT token first, fallback to username/password for initial setup
-        access_token = os.getenv('SERVICENOW_JWT_TOKEN')
-        
+        # access_token = os.getenv('SERVICENOW_JWT_TOKEN')
+        #
         if access_token:
             # Use JWT token authentication
             try:
@@ -68,10 +68,10 @@ def get_snow_connection():
                 snow_connection = ObservabilityServiceNow(
                     username=username,
                     password=None,  # Not needed with JWT
-                    client_id='e78a061f7cd346388b10be87a08a5a86',
-                    client_secret='7nsw$|SMZx',
+                    client_id=os.getenv('JWT_CLIENT_ID'),
+                    client_secret=os.getenv('JWT_CLIENT_SECRET'),
                     servicenow_api_url=instance_url,
-                    access_token=access_token  # Pass JWT token if supported
+                    # Pass JWT token if supported
                 )
                 
             except Exception as e:

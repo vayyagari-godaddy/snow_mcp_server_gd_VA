@@ -7,9 +7,9 @@
     <list default="true" id="cc8bff32-7ab1-4eec-b70d-a2beedf90e03" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.env" beforeDir="false" afterPath="$PROJECT_DIR$/.env" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PROTOCOL_FIX.md" beforeDir="false" afterPath="$PROJECT_DIR$/PROTOCOL_FIX.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/claude_desktop_config.json" beforeDir="false" afterPath="$PROJECT_DIR$/claude_desktop_config.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/jwt_auth.py" beforeDir="false" afterPath="$PROJECT_DIR$/jwt_auth.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server.py" beforeDir="false" afterPath="$PROJECT_DIR$/server.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/server_fastmcp.py" beforeDir="false" afterPath="$PROJECT_DIR$/server_fastmcp.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -38,12 +38,16 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python.connections.executor": "Run",
     "Python.create_inc_with_ci.executor": "Run",
+    "Python.dotenv.executor": "Run",
     "Python.get_incident_tools.executor": "Run",
     "Python.get_kb_article.executor": "Run",
     "Python.jwt_auth.executor": "Run",
     "Python.knowledge_tools.executor": "Run",
     "Python.observability_snow.executor": "Run",
+    "Python.okta.executor": "Run",
+    "Python.okta1.executor": "Run",
     "Python.server.executor": "Run",
     "Python.tools_utils.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
@@ -111,6 +115,51 @@
           <url>file://$PROJECT_DIR$/server.py</url>
           <line>236</line>
           <option name="timeStamp" value="1" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/jwt_auth.py</url>
+          <line>31</line>
+          <option name="timeStamp" value="2" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/.venv/lib/python3.13/site-packages/gd_servicenow_api/observability_snow.py</url>
+          <line>648</line>
+          <option name="timeStamp" value="3" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/.venv/lib/python3.13/site-packages/gd_servicenow_api/tools/okta1.py</url>
+          <line>240</line>
+          <option name="timeStamp" value="5" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/.venv/lib/python3.13/site-packages/gd_servicenow_api/tools/okta1.py</url>
+          <line>27</line>
+          <option name="timeStamp" value="6" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/.venv/lib/python3.13/site-packages/gd_servicenow_api/observability_snow.py</url>
+          <line>133</line>
+          <option name="timeStamp" value="7" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/server.py</url>
+          <line>142</line>
+          <option name="timeStamp" value="8" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/.venv/lib/python3.13/site-packages/gd_servicenow_api/observability_snow.py</url>
+          <line>363</line>
+          <option name="timeStamp" value="9" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/.venv/lib/python3.13/site-packages/gd_servicenow_api/observability_snow.py</url>
+          <line>672</line>
+          <option name="timeStamp" value="10" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/.venv/lib/python3.13/site-packages/gd_servicenow_api/observability_snow.py</url>
+          <line>53</line>
+          <option name="timeStamp" value="11" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

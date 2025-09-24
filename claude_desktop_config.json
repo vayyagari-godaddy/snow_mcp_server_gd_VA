@@ -1,13 +1,9 @@
 {
   "mcpServers": {
     "servicenow": {
-      "command": "python",
+      "command": "python3",
       "args": ["/Users/vayyagari/PycharmProjects/snow_mcp_server_gd/server.py"],
-      "env": {
-        "SERVICENOW_INSTANCE_URL": "your_servicenow_instance_url_here",
-        "SERVICENOW_USERNAME": "your_servicenow_username_here", 
-        "SERVICENOW_PASSWORD": "your_servicenow_password_here"
-      }
+      "cwd": "/Users/vayyagari/PycharmProjects/snow_mcp_server_gd"
     }
   }
 }
