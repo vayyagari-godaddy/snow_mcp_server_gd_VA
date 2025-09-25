@@ -170,6 +170,10 @@ def apply_urllib3_monkey_patch_comprehensive():
         ObservabilityServiceNow.__init__ = patched_init
         ObservabilityServiceNow._authenticate = _authenticate
         
+        # Verify the patches were applied
+        logger.info("✅ Patched ObservabilityServiceNow.__init__")
+        logger.info("✅ Patched ObservabilityServiceNow._authenticate")
+        
         patches_applied.append("ObservabilityServiceNow")
         logger.info("✅ Patched ObservabilityServiceNow")
         
