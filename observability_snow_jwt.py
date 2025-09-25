@@ -894,6 +894,7 @@ class ObservabilityServiceNow:
             # Safely extract the result
             if isinstance(json_response, dict) and "result" in json_response:
                 result = json_response.get("result", [])
+                logger.info(f"Extracted {len(result)} articles from ServiceNow response")
             else:
                 logger.error("Unexpected response format: %s", json_response)
                 return {
@@ -963,11 +964,45 @@ class ObservabilityServiceNow:
                     articles.append(sanitized_article)
 
             logger.info(f"Returning {len(articles)} articles from list_articles")
+            
+            # Create a simplified response with key article details
+            simplified_articles = []
+            for article in articles:
+                if isinstance(article, dict):
+                    # Extract key information
+                    article_info = {
+                        'sys_id': article.get('sys_id', {}).get('value', ''),
+                        'number': article.get('number', {}).get('value', ''),
+                        'short_description': article.get('short_description', {}).get('value', ''),
+                        'description': article.get('description', {}).get('value', ''),
+                        'workflow_state': article.get('workflow_state', {}).get('value', ''),
+                        'active': article.get('active', {}).get('value', ''),
+                        'published': article.get('published', {}).get('value', ''),
+                        'author': article.get('author', {}).get('display_value', ''),
+                        'kb_knowledge_base': article.get('kb_knowledge_base', {}).get('display_value', ''),
+                        'category': article.get('kb_category', {}).get('display_value', ''),
+                        'sys_created_on': article.get('sys_created_on', {}).get('value', ''),
+                        'sys_updated_on': article.get('sys_updated_on', {}).get('value', ''),
+                    }
+                    
+                    # Add sanitized text if available
+                    if 'text' in article and isinstance(article['text'], dict):
+                        text_content = article['text'].get('value', '')
+                        if text_content:
+                            import re
+                            clean_text = re.sub(r'<[^>]+>', '', text_content)
+                            clean_text = re.sub(r'\s+', ' ', clean_text).strip()
+                            if len(clean_text) > 1000:
+                                clean_text = clean_text[:1000] + "..."
+                            article_info['text'] = clean_text
+                    
+                    simplified_articles.append(article_info)
+            
             return {
                 "success": True,
-                "message": f"Found {len(articles)} articles",
-                "articles": articles,
-                "count": len(articles),
+                "message": f"Found {len(simplified_articles)} articles",
+                "articles": simplified_articles,
+                "count": len(simplified_articles),
                 "limit": params.limit,
                 "offset": params.offset,
             }
