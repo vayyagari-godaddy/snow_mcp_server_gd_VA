@@ -269,15 +269,11 @@ def get_knowledge_article(article_id: str) -> Dict[str, Any]:
         if not articles_response.get("success", False):
             raise Exception(articles_response.get("message", "Failed to retrieve knowledge article"))
             
-        # The get_article method returns the article data directly in the response
-        article_data = articles_response.get("result", {})
+        # The get_article method returns the article data in the "article" key
+        article_data = articles_response.get("article", {})
         
         if not article_data:
             raise Exception(f"Knowledge article {article_id} not found")
-        
-        # The result should be a dictionary, not a list
-        if isinstance(article_data, list) and article_data:
-            article_data = article_data[0]
         
         result = {
             "success": True,
