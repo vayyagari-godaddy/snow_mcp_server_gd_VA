@@ -22,12 +22,12 @@ except ImportError:
 
 from mcp.server.fastmcp import FastMCP
 
-# Apply urllib3 monkey patch before importing ServiceNow API tools
+# Apply comprehensive urllib3 monkey patch before importing ServiceNow API tools
 try:
-    import urllib3_monkey_patch
-    logging.info("Applied urllib3 monkey patch for ObservabilityServiceNow")
+    import urllib3_monkey_patch_comprehensive
+    logging.info("Applied comprehensive urllib3 monkey patch for all ServiceNow API modules")
 except ImportError as e:
-    logging.warning(f"Could not apply urllib3 monkey patch: {e}")
+    logging.warning(f"Could not apply comprehensive urllib3 monkey patch: {e}")
 
 # Import ServiceNow API tools
 try:
@@ -68,8 +68,8 @@ def get_snow_connection():
         instance_url = os.getenv('SERVICENOW_INSTANCE_URL')
         username = os.getenv('SERVICENOW_USERNAME')
         password = os.getenv('SERVICENOW_PASSWORD')
-        client_id = os.getenv('JWT_CLIENT_ID')
-        client_secret = os.getenv('JWT_CLIENT_SECRET')
+        client_id = os.getenv('SERVICENOW_CLIENT_ID')
+        client_secret = os.getenv('SERVICENOW_CLIENT_SECRET')
         
         if not all([instance_url, username, password]):
             raise ValueError(
