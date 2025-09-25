@@ -339,7 +339,6 @@ def test_connection() -> Dict[str, Any]:
 if __name__ == "__main__":
     # Run the server
     logger.info("Starting ServiceNow MCP Server with FastMCP...")
-    # # # Use stdio for Claude Desktop compatibility
+    # Use stdio for Claude Desktop compatibility
     import asyncio
     asyncio.run(mcp.run_stdio_async())
-    get_knowledge_article('f59cc01b93bbe250c8b9fc83a803d645')
