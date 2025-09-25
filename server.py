@@ -31,7 +31,7 @@ except ImportError as e:
 
 # Import ServiceNow API tools
 try:
-    from gd_servicenow_api.observability_snow import ObservabilityServiceNow
+    from gd_servicenow_api.observability_snow_jwt import ObservabilityServiceNow as ObservabilityServiceNowJWT
 except ImportError as e:
     logging.error(f"Failed to import ServiceNow API tools: {e}")
     raise
@@ -95,7 +95,7 @@ def get_snow_connection():
         # Fallback to patched ObservabilityServiceNow if wrapper failed
         if snow_connection is None:
             try:
-                snow_connection = ObservabilityServiceNow(
+                snow_connection = ObservabilityServiceNowJWT(
                     username=username,
                     password=password,
                     client_id=client_id,
