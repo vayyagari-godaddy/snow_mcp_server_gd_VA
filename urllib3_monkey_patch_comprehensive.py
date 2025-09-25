@@ -10,8 +10,40 @@ import logging
 import httpx
 import requests
 from typing import Any, Dict, Optional
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import webbrowser
+import urllib.parse
 
 logger = logging.getLogger(__name__)
+
+# Global variable to store the authorization code
+code = None
+
+class RequestHandler(BaseHTTPRequestHandler):
+    """HTTP request handler for OAuth callback."""
+    
+    def do_GET(self):
+        global code
+        # Parse the query parameters from the URL
+        parsed_url = urllib.parse.urlparse(self.path)
+        query_params = urllib.parse.parse_qs(parsed_url.query)
+        
+        # Extract the authorization code
+        if 'code' in query_params:
+            code = query_params['code'][0]
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            self.wfile.write(b'<html><body><h1>Authorization successful!</h1><p>You can close this window.</p></body></html>')
+        else:
+            self.send_response(400)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            self.wfile.write(b'<html><body><h1>Authorization failed!</h1><p>No authorization code received.</p></body></html>')
+    
+    def log_message(self, format, *args):
+        # Suppress default logging
+        pass
 
 class HttpxRequestsAdapter:
     """

@@ -42,12 +42,7 @@ except ImportError as e:
         logging.error(f"Failed to import any ServiceNow API tools: {e2}")
         raise
 
-# Import our custom httpx-based client as fallback
-try:
-    from servicenow_client_httpx import create_servicenow_client_httpx
-except ImportError as e:
-    logging.warning(f"Failed to import httpx-based ServiceNow client: {e}")
-    create_servicenow_client_httpx = None
+# Note: Using only ObservabilityServiceNowJWT, no httpx fallback
 
 # Import our working wrapper
 try:
@@ -74,8 +69,8 @@ def get_snow_connection():
         instance_url = os.getenv('SERVICENOW_INSTANCE_URL')
         username = os.getenv('SERVICENOW_USERNAME')
         password = os.getenv('SERVICENOW_PASSWORD')
-        client_id = os.getenv('SERVICENOW_CLIENT_ID')
-        client_secret = os.getenv('SERVICENOW_CLIENT_SECRET')
+        client_id = os.getenv('JWT_CLIENT_ID')
+        client_secret = os.getenv('JWT_CLIENT_SECRET')
         
         if not all([instance_url, username, password]):
             raise ValueError(
@@ -98,7 +93,7 @@ def get_snow_connection():
         #         logger.warning(f"Working wrapper failed: {e}")
         #         snow_connection = None
         
-        # Fallback to patched ObservabilityServiceNow if wrapper failed
+        # Use ObservabilityServiceNowJWT (no httpx fallback)
         if snow_connection is None:
             try:
                 snow_connection = ObservabilityServiceNowJWT(
@@ -108,20 +103,10 @@ def get_snow_connection():
                     client_secret=client_secret,
                     servicenow_api_url=instance_url
                 )
-                logger.info("Successfully created ServiceNow connection with patched ObservabilityServiceNow (httpx)")
+                logger.info("Successfully created ServiceNow connection with ObservabilityServiceNowJWT")
             except Exception as e:
-                logger.error(f"Patched ObservabilityServiceNow failed: {e}")
-                logger.info("Falling back to httpx-based client")
-                
-                # Use our custom httpx-based client as final fallback
-                if create_servicenow_client_httpx:
-                    snow_connection = create_servicenow_client_httpx()
-                    if snow_connection:
-                        logger.info("Successfully created ServiceNow connection with httpx client")
-                    else:
-                        raise ValueError("Failed to create httpx-based ServiceNow client")
-                else:
-                    raise ValueError("All ServiceNow clients failed and no fallback available")
+                logger.error(f"ObservabilityServiceNowJWT failed: {e}")
+                raise ValueError(f"Failed to create ServiceNow connection: {e}")
     
     return snow_connection
 
@@ -271,22 +256,17 @@ def get_knowledge_article(article_id: str) -> Dict[str, Any]:
         # Get specific knowledge article using get_table method
         # Try different possible table names for knowledge base
         knowledge_tables = ['kb_knowledge', 'kb_article', 'knowledge']
-        
+     
+       
         article_data = None
-        for table_name in knowledge_tables:
-            try:
-                response_data, headers, status_code = connection.get_table(
-                    table=table_name,
-                    rows=1,
-                    extra_params=f"sysparm_query=number={article_id}^ORsys_id={article_id}"
-                )
+        # for table_name in knowledge_tables:
+        try:
+                response_data, headers, status_code = connection.get_article(article_id)
                 
                 if status_code == 200 and response_data.get('result'):
                     article_data = response_data['result'][0]
-                    break
-            except Exception as e:
-                logger.debug(f"Failed to query {table_name}: {e}")
-                continue
+        except Exception as e:
+                logger.debug(f"Failed to query {article_id}: {e}")
         
         if not article_data:
             raise Exception(f"Knowledge article {article_id} not found")
