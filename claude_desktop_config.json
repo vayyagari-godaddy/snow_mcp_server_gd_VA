@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "servicenow": {
-      "command": "python3",
+      "command": "/Users/vayyagari/PycharmProjects/snow_mcp_server_gd/.venv/bin/python3",
       "args": ["/Users/vayyagari/PycharmProjects/snow_mcp_server_gd/server.py"],
       "cwd": "/Users/vayyagari/PycharmProjects/snow_mcp_server_gd"
     }
