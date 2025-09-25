@@ -229,11 +229,19 @@ def search_knowledge_base(
         if not articles_response.get("success", False):
             raise Exception(articles_response.get("message", "Failed to search knowledge base"))
             
-        articles = articles_response.get("articles", [])
+        # Handle different response formats from list_articles
+        if "articles" in articles_response:
+            articles = articles_response.get("articles", [])
+        elif "result" in articles_response:
+            articles = articles_response.get("result", [])
+        else:
+            articles = []
         
         # Sanitize HTML content in articles to prevent JSON parsing issues
         sanitized_articles = []
-        for article in articles:
+        logger.info(f"Processing {len(articles)} articles for HTML sanitization")
+        
+        for i, article in enumerate(articles):
             if isinstance(article, dict):
                 sanitized_article = article.copy()
                 
@@ -241,6 +249,8 @@ def search_knowledge_base(
                 if 'text' in sanitized_article and isinstance(sanitized_article['text'], dict):
                     text_content = sanitized_article['text'].get('value', '')
                     if text_content:
+                        logger.info(f"Article {i+1}: Found text content with {len(text_content)} characters")
+                        
                         # Remove HTML tags and clean up the content
                         import re
                         import html
@@ -254,8 +264,8 @@ def search_knowledge_base(
                         # Remove extra whitespace and newlines
                         clean_text = re.sub(r'\s+', ' ', clean_text).strip()
                         
-                        # Escape any remaining problematic characters for JSON
-                        clean_text = clean_text.replace('"', '\\"').replace('\\', '\\\\')
+                        # Remove any remaining control characters that could break JSON
+                        clean_text = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', clean_text)
                         
                         # Limit length to prevent huge responses
                         if len(clean_text) > 1000:
@@ -263,10 +273,38 @@ def search_knowledge_base(
                         
                         sanitized_article['text']['value'] = clean_text
                         sanitized_article['text']['display_value'] = clean_text
+                        
+                        logger.info(f"Article {i+1}: Sanitized text content to {len(clean_text)} characters")
+                    else:
+                        logger.info(f"Article {i+1}: Text field is empty")
+                
+                # Also sanitize other text fields that might contain HTML
+                for field_name in ['short_description', 'meta_description', 'description']:
+                    if field_name in sanitized_article and isinstance(sanitized_article[field_name], dict):
+                        field_content = sanitized_article[field_name].get('value', '')
+                        if field_content:
+                            import re
+                            import html
+                            
+                            # Clean the field content
+                            clean_field = html.unescape(field_content)
+                            clean_field = re.sub(r'<[^>]+>', '', clean_field)
+                            clean_field = re.sub(r'\s+', ' ', clean_field).strip()
+                            clean_field = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', clean_field)
+                            
+                            if len(clean_field) > 500:
+                                clean_field = clean_field[:500] + "..."
+                            
+                            sanitized_article[field_name]['value'] = clean_field
+                            sanitized_article[field_name]['display_value'] = clean_field
+                            
+                            logger.info(f"Article {i+1}: Sanitized {field_name} field")
                 
                 sanitized_articles.append(sanitized_article)
             else:
                 sanitized_articles.append(article)
+        
+        logger.info(f"Sanitized {len(sanitized_articles)} articles")
         
         result = {
             "success": True,
