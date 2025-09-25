@@ -844,7 +844,9 @@ class ObservabilityServiceNow:
         Returns:
             Dictionary with list of articles and metadata.
         """
-        api_url = f"{self.url}/api/now/table/kb_knowledge"
+        try:
+            logger.info(f"Starting list_articles with params: {params}")
+            api_url = f"{self.url}/api/now/table/kb_knowledge"
 
         # Build query parameters
         query_params = {
@@ -873,6 +875,9 @@ class ObservabilityServiceNow:
         logger.debug(f"Listing articles with query params: {query_params}")
         # Make request
         try:
+            logger.info(f"Making request to: {api_url}")
+            logger.info(f"Query params: {query_params}")
+            
             response = requests.get(
                 api_url,
                 params=query_params,
@@ -883,7 +888,8 @@ class ObservabilityServiceNow:
 
             # Get the JSON response
             json_response = response.json()
-            logger.debug(f"Article listing raw response: {json_response}")
+            logger.info(f"Article listing raw response keys: {list(json_response.keys()) if isinstance(json_response, dict) else 'Not a dict'}")
+            logger.info(f"Article listing raw response result count: {len(json_response.get('result', [])) if isinstance(json_response, dict) else 'No result key'}")
 
             # Safely extract the result
             if isinstance(json_response, dict) and "result" in json_response:
@@ -918,6 +924,22 @@ class ObservabilityServiceNow:
                     # Create a copy of the article
                     sanitized_article = article_item.copy()
                     
+                    # Extract key article information for better response
+                    article_info = {
+                        'sys_id': sanitized_article.get('sys_id', {}).get('value', ''),
+                        'number': sanitized_article.get('number', {}).get('value', ''),
+                        'short_description': sanitized_article.get('short_description', {}).get('value', ''),
+                        'description': sanitized_article.get('description', {}).get('value', ''),
+                        'workflow_state': sanitized_article.get('workflow_state', {}).get('value', ''),
+                        'active': sanitized_article.get('active', {}).get('value', ''),
+                        'published': sanitized_article.get('published', {}).get('value', ''),
+                        'author': sanitized_article.get('author', {}).get('display_value', ''),
+                        'kb_knowledge_base': sanitized_article.get('kb_knowledge_base', {}).get('display_value', ''),
+                        'category': sanitized_article.get('kb_category', {}).get('display_value', ''),
+                        'sys_created_on': sanitized_article.get('sys_created_on', {}).get('value', ''),
+                        'sys_updated_on': sanitized_article.get('sys_updated_on', {}).get('value', ''),
+                    }
+                    
                     # Sanitize HTML content in text field
                     if 'text' in sanitized_article and isinstance(sanitized_article['text'], dict):
                         text_content = sanitized_article['text'].get('value', '')
@@ -933,10 +955,14 @@ class ObservabilityServiceNow:
                                 clean_text = clean_text[:1000] + "..."
                             sanitized_article['text']['value'] = clean_text
                             sanitized_article['text']['display_value'] = clean_text
+                            article_info['text'] = clean_text
                             print(f"DEBUG: Sanitized text from {len(text_content)} to {len(clean_text)} chars")
                     
+                    # Add the article info to the sanitized article
+                    sanitized_article['article_info'] = article_info
                     articles.append(sanitized_article)
 
+            logger.info(f"Returning {len(articles)} articles from list_articles")
             return {
                 "success": True,
                 "message": f"Found {len(articles)} articles",
@@ -951,6 +977,18 @@ class ObservabilityServiceNow:
             return {
                 "success": False,
                 "message": f"Failed to list articles: {str(e)}",
+                "articles": [],
+                "count": 0,
+                "limit": params.limit,
+                "offset": params.offset,
+            }
+        except Exception as e:
+            logger.error(f"Unexpected error in list_articles: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return {
+                "success": False,
+                "message": f"Unexpected error: {str(e)}",
                 "articles": [],
                 "count": 0,
                 "limit": params.limit,

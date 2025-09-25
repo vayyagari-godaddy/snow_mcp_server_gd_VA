@@ -224,18 +224,40 @@ def search_knowledge_base(
         }
                     
         params_obj = SimpleParams(**params_dict)
+        logger.info(f"Calling list_articles with params: {params_dict}")
         articles_response = connection.list_articles(params_obj)
+        logger.info(f"list_articles returned: {articles_response}")
         
         if not articles_response.get("success", False):
             raise Exception(articles_response.get("message", "Failed to search knowledge base"))
             
         # Handle different response formats from list_articles
+        logger.info(f"Full articles_response: {articles_response}")
+        
         if "articles" in articles_response:
             articles = articles_response.get("articles", [])
+            logger.info(f"Found {len(articles)} articles in 'articles' field")
         elif "result" in articles_response:
             articles = articles_response.get("result", [])
+            logger.info(f"Found {len(articles)} articles in 'result' field")
         else:
             articles = []
+            logger.warning("No articles found in response - checking response keys")
+            logger.info(f"Response keys: {list(articles_response.keys())}")
+            
+            # Check if the response itself is a list of articles
+            if isinstance(articles_response, list):
+                articles = articles_response
+                logger.info(f"Response is a list with {len(articles)} articles")
+            else:
+                # Check if there are any other keys that might contain articles
+                for key, value in articles_response.items():
+                    if isinstance(value, list) and len(value) > 0:
+                        logger.info(f"Found potential articles in key '{key}' with {len(value)} items")
+                        if isinstance(value[0], dict):
+                            articles = value
+                            logger.info(f"Using articles from key '{key}'")
+                            break
         
         # Sanitize HTML content in articles to prevent JSON parsing issues
         sanitized_articles = []
@@ -313,6 +335,7 @@ def search_knowledge_base(
             "timestamp": datetime.now().isoformat()
         }
         
+        logger.info(f"Final result: {len(sanitized_articles)} articles returned to client")
         logger.info(f"Retrieved {len(articles)} knowledge articles from ServiceNow using list_articles")
         return result
         
