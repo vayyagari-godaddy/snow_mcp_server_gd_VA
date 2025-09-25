@@ -220,7 +220,9 @@ def search_knowledge_base(
             "limit": limit,
             "offset": 0,
             "query": search_term,
-            "category": category
+            "category": category,
+            "workflow_state": "published",
+            "active": "true"
         }
                     
         params_obj = SimpleParams(**params_dict)
@@ -241,7 +243,8 @@ def search_knowledge_base(
                         rows=limit,
                         offset=0,
                         extra_params={
-                            "sysparm_display_value": "all"
+                            "sysparm_display_value": "all",
+                            "sysparm_query": "active=true^workflow_state=published"
                         }
                     )
                     
