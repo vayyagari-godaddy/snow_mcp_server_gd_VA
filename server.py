@@ -51,11 +51,13 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ServiceNow connection instance
-snow_connection = None
+
 
 def get_snow_connection():
     """Get or create ServiceNow connection"""
+
     global snow_connection
+    snow_connection = ObservabilityServiceNow(os.getenv('SERVICENOW_USERNAME'),os.getenv('SERVICENOW_PASSWORD'), os.getenv('SERVICENOW_CLIENT_ID'), os.getenv('SERVICENOW_CLIENT_SECRET'), os.getenv('SERVICENOW_INSTANCE_URL'))
     if snow_connection is None:
         # Load credentials from environment variables
         instance_url = os.getenv('SERVICENOW_INSTANCE_URL')
