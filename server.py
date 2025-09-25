@@ -32,9 +32,15 @@ except ImportError as e:
 # Import ServiceNow API tools
 try:
     from gd_servicenow_api.observability_snow_jwt import ObservabilityServiceNow as ObservabilityServiceNowJWT
+    logging.info("Successfully imported ObservabilityServiceNowJWT from observability_snow_jwt")
 except ImportError as e:
-    logging.error(f"Failed to import ServiceNow API tools: {e}")
-    raise
+    logging.warning(f"Failed to import JWT version, falling back to regular version: {e}")
+    try:
+        from gd_servicenow_api.observability_snow import ObservabilityServiceNow as ObservabilityServiceNowJWT
+        logging.info("Successfully imported ObservabilityServiceNow as fallback")
+    except ImportError as e2:
+        logging.error(f"Failed to import any ServiceNow API tools: {e2}")
+        raise
 
 # Import our custom httpx-based client as fallback
 try:
