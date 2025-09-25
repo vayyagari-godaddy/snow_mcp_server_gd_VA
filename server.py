@@ -53,12 +53,9 @@ logger = logging.getLogger(__name__)
 # ServiceNow connection instance
 snow_connection = None
 
-
 def get_snow_connection():
     """Get or create ServiceNow connection"""
-
     global snow_connection
-    
     if snow_connection is None:
         # Load credentials from environment variables
         instance_url = os.getenv('SERVICENOW_INSTANCE_URL')
@@ -332,7 +329,7 @@ def test_connection() -> Dict[str, Any]:
 if __name__ == "__main__":
     # Run the server
     logger.info("Starting ServiceNow MCP Server with FastMCP...")
-    # # Use stdio for Claude Desktop compatibility
+    # # # Use stdio for Claude Desktop compatibility
     import asyncio
     asyncio.run(mcp.run_stdio_async())
     # get_knowledge_article('f9b928573b3c2a94117fa51916e45a5d')
