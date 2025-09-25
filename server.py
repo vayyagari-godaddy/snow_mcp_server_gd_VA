@@ -78,19 +78,19 @@ def get_snow_connection():
             )
         
         # Try the working wrapper first (most reliable)
-        if ObservabilityServiceNowWrapper:
-            try:
-                snow_connection = ObservabilityServiceNowWrapper(
-                    username=username,
-                    password=password,
-                    client_id=client_id,
-                    client_secret=client_secret,
-                    servicenow_api_url=instance_url
-                )
-                logger.info("Successfully created ServiceNow connection with working wrapper")
-            except Exception as e:
-                logger.warning(f"Working wrapper failed: {e}")
-                snow_connection = None
+        # if ObservabilityServiceNowWrapper:
+        #     try:
+        #         snow_connection = ObservabilityServiceNow(
+        #             username=username,
+        #             password=password,
+        #             client_id=client_id,
+        #             client_secret=client_secret,
+        #             servicenow_api_url=instance_url
+        #         )
+        #         logger.info("Successfully created ServiceNow connection with working wrapper")
+        #     except Exception as e:
+        #         logger.warning(f"Working wrapper failed: {e}")
+        #         snow_connection = None
         
         # Fallback to patched ObservabilityServiceNow if wrapper failed
         if snow_connection is None:
@@ -262,17 +262,32 @@ def get_knowledge_article(article_id: str) -> Dict[str, Any]:
     try:
         connection = get_snow_connection()
         
-        # Get specific knowledge article
-        article_response = connection.get_article(article_id)
+        # Get specific knowledge article using get_table method
+        # Try different possible table names for knowledge base
+        knowledge_tables = ['kb_knowledge', 'kb_article', 'knowledge']
         
-        if not article_response.get("success", False):
-            raise Exception(article_response.get("message", "Failed to retrieve knowledge article"))
-            
-        article = article_response.get("article", {})
+        article_data = None
+        for table_name in knowledge_tables:
+            try:
+                response_data, headers, status_code = connection.get_table(
+                    table=table_name,
+                    rows=1,
+                    extra_params=f"sysparm_query=number={article_id}^ORsys_id={article_id}"
+                )
+                
+                if status_code == 200 and response_data.get('result'):
+                    article_data = response_data['result'][0]
+                    break
+            except Exception as e:
+                logger.debug(f"Failed to query {table_name}: {e}")
+                continue
+        
+        if not article_data:
+            raise Exception(f"Knowledge article {article_id} not found")
         
         result = {
             "success": True,
-            "article": article,
+            "article": article_data,
             "timestamp": datetime.now().isoformat()
         }
         
@@ -341,4 +356,4 @@ if __name__ == "__main__":
     # # # Use stdio for Claude Desktop compatibility
     import asyncio
     asyncio.run(mcp.run_stdio_async())
-    # get_knowledge_article('f9b928573b3c2a94117fa51916e45a5d')
+    get_knowledge_article('f59cc01b93bbe250c8b9fc83a803d645')
