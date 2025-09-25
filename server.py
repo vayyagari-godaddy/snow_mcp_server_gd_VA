@@ -22,6 +22,13 @@ except ImportError:
 
 from mcp.server.fastmcp import FastMCP
 
+# Apply urllib3 monkey patch before importing ServiceNow API tools
+try:
+    import urllib3_monkey_patch
+    logging.info("Applied urllib3 monkey patch for ObservabilityServiceNow")
+except ImportError as e:
+    logging.warning(f"Could not apply urllib3 monkey patch: {e}")
+
 # Import ServiceNow API tools
 try:
     from gd_servicenow_api.observability_snow import ObservabilityServiceNow
@@ -51,18 +58,18 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ServiceNow connection instance
-
+snow_connection = None
 
 def get_snow_connection():
-    """Get or create ServiceNow connection"""
-
+    """Get or create ServiceNow connection using patched ObservabilityServiceNow"""
     global snow_connection
-    snow_connection = ObservabilityServiceNow(os.getenv('SERVICENOW_USERNAME'),os.getenv('SERVICENOW_PASSWORD'), os.getenv('SERVICENOW_CLIENT_ID'), os.getenv('SERVICENOW_CLIENT_SECRET'), os.getenv('SERVICENOW_INSTANCE_URL'))
     if snow_connection is None:
         # Load credentials from environment variables
         instance_url = os.getenv('SERVICENOW_INSTANCE_URL')
         username = os.getenv('SERVICENOW_USERNAME')
         password = os.getenv('SERVICENOW_PASSWORD')
+        client_id = os.getenv('JWT_CLIENT_ID')
+        client_secret = os.getenv('JWT_CLIENT_SECRET')
         
         if not all([instance_url, username, password]):
             raise ValueError(
@@ -70,45 +77,19 @@ def get_snow_connection():
                 "SERVICENOW_USERNAME, and SERVICENOW_PASSWORD environment variables."
             )
         
-        # Try the working wrapper first
-        if ObservabilityServiceNowWrapper:
-            try:
-                snow_connection = ObservabilityServiceNowWrapper(
-                    username=username,
-                    password=password,
-                    client_id=os.getenv('JWT_CLIENT_ID'),
-                    client_secret=os.getenv('JWT_CLIENT_SECRET'),
-                    servicenow_api_url=instance_url
-                )
-                logger.info("Successfully created ServiceNow connection with working wrapper")
-            except Exception as e:
-                logger.warning(f"Working wrapper failed: {e}")
-                snow_connection = None
-        
-        # Fallback to original client if wrapper failed
-        if snow_connection is None:
-            try:
-                snow_connection = ObservabilityServiceNow(
-                    username=username,
-                    password=password,
-                    client_id=os.getenv('JWT_CLIENT_ID', 'default_client_id'),
-                    client_secret=os.getenv('JWT_CLIENT_SECRET', 'default_secret'),
-                    servicenow_api_url=instance_url
-                )
-                logger.info("Successfully created ServiceNow connection with original client")
-            except Exception as e:
-                logger.warning(f"Original ServiceNow client failed: {e}")
-                logger.info("Falling back to httpx-based client")
-                
-                # Use our custom httpx-based client as final fallback
-                if create_servicenow_client_httpx:
-                    snow_connection = create_servicenow_client_httpx()
-                    if snow_connection:
-                        logger.info("Successfully created ServiceNow connection with httpx client")
-                    else:
-                        raise ValueError("Failed to create httpx-based ServiceNow client")
-                else:
-                    raise ValueError("All ServiceNow clients failed and no fallback available")
+        # Use the patched ObservabilityServiceNow (with httpx monkey patch)
+        try:
+            snow_connection = ObservabilityServiceNow(
+                username=username,
+                password=password,
+                client_id=client_id,
+                client_secret=client_secret,
+                servicenow_api_url=instance_url
+            )
+            logger.info("Successfully created ServiceNow connection with patched ObservabilityServiceNow (httpx)")
+        except Exception as e:
+            logger.error(f"Patched ObservabilityServiceNow failed: {e}")
+            raise ValueError(f"Failed to create ServiceNow connection: {e}")
     
     return snow_connection
 
