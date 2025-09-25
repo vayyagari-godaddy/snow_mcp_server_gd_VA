@@ -25,20 +25,20 @@ try:
     from gd_servicenow_api.ci_relationship import CIRelationship
     from gd_servicenow_api.database import Database
 except ModuleNotFoundError:
-    from incident_state import IncidentState
-    from data_processor import DataProcessor
-    from data_processor_environment import DataProcessorEnvironment
-    from public_cloud_account import PublicCloudAccount
-    from table import Table
-    from ci_relationship_type import CIRelationshipType
-    from ci_relationship import CIRelationship
-    from database import Database
+    from gd_servicenow_api.incident_state import IncidentState
+    from gd_servicenow_api.data_processor import DataProcessor
+    from gd_servicenow_api.data_processor_environment import DataProcessorEnvironment
+    from gd_servicenow_api.public_cloud_account import PublicCloudAccount
+    from gd_servicenow_api.table import Table
+    from gd_servicenow_api.ci_relationship_type import CIRelationshipType
+    from gd_servicenow_api.ci_relationship import CIRelationship
+    from gd_servicenow_api.database import Database
 try:
     from gd_servicenow_api.exceptions import (AuthError, UnauthorizedError, ParameterError, MissingParameterError, DataProcessorAlreadyExists)
 except ModuleNotFoundError:
-    from exceptions import (AuthError, UnauthorizedError, ParameterError, MissingParameterError, DataProcessorAlreadyExists)
+    from gd_servicenow_api.exceptions import (AuthError, UnauthorizedError, ParameterError, MissingParameterError, DataProcessorAlreadyExists)
 except ImportError:
-    from exceptions import (AuthError, UnauthorizedError, ParameterError, MissingParameterError,
+    from gd_servicenow_api.exceptions import (AuthError, UnauthorizedError, ParameterError, MissingParameterError,
                             DataProcessorAlreadyExists)
 
 
@@ -877,12 +877,8 @@ class ObservabilityServiceNow:
                 api_url,
                 params=query_params,
                 headers=self.headers_api,
-                timeout=5,
+                timeout=30,  # Increased timeout from 5 to 30 seconds
             )
-            print(response.json())
-            return {
-                "success": True,
-            }
             response.raise_for_status()
 
             # Get the JSON response
@@ -903,47 +899,43 @@ class ObservabilityServiceNow:
                     "offset": params.offset,
                 }
 
-            # Transform the results
+            # Sanitize HTML content in articles to prevent JSON parsing issues
             articles = []
-
-            # Handle either string or list
+            
+            # Handle different response formats
             if isinstance(result, list):
-                for article_item in result:
-                    if not isinstance(article_item, dict):
-                        logger.warning("Skipping non-dictionary article item: %s", article_item)
-                        continue
-
-                    # Safely extract values
-                    article_id = article_item.get("sys_id", "")
-                    title = article_item.get("short_description", "")
-
-                    # Extract nested values safely
-                    knowledge_base = ""
-                    if isinstance(article_item.get("kb_knowledge_base"), dict):
-                        knowledge_base = article_item["kb_knowledge_base"].get("display_value", "")
-
-                    category = ""
-                    if isinstance(article_item.get("kb_category"), dict):
-                        category = article_item["kb_category"].get("display_value", "")
-
-                    workflow_state = ""
-                    if isinstance(article_item.get("workflow_state"), dict):
-                        workflow_state = article_item["workflow_state"].get("display_value", "")
-
-                    created = article_item.get("sys_created_on", "")
-                    updated = article_item.get("sys_updated_on", "")
-
-                    articles.append({
-                        "id": article_id,
-                        "title": title,
-                        "knowledge_base": knowledge_base,
-                        "category": category,
-                        "workflow_state": workflow_state,
-                        "created": created,
-                        "updated": updated,
-                    })
+                articles_data = result
+            elif isinstance(result, dict) and 'result' in result:
+                articles_data = result['result']
             else:
-                logger.warning("Result is not a list: %s", result)
+                articles_data = []
+            
+            if isinstance(articles_data, list):
+                for article_item in articles_data:
+                    if not isinstance(article_item, dict):
+                        continue
+                    
+                    # Create a copy of the article
+                    sanitized_article = article_item.copy()
+                    
+                    # Sanitize HTML content in text field
+                    if 'text' in sanitized_article and isinstance(sanitized_article['text'], dict):
+                        text_content = sanitized_article['text'].get('value', '')
+                        if text_content:
+                            # Remove HTML tags and clean up the content
+                            import re
+                            # Remove HTML tags
+                            clean_text = re.sub(r'<[^>]+>', '', text_content)
+                            # Remove extra whitespace and newlines
+                            clean_text = re.sub(r'\s+', ' ', clean_text).strip()
+                            # Limit length to prevent huge responses
+                            if len(clean_text) > 1000:
+                                clean_text = clean_text[:1000] + "..."
+                            sanitized_article['text']['value'] = clean_text
+                            sanitized_article['text']['display_value'] = clean_text
+                            print(f"DEBUG: Sanitized text from {len(text_content)} to {len(clean_text)} chars")
+                    
+                    articles.append(sanitized_article)
 
             return {
                 "success": True,

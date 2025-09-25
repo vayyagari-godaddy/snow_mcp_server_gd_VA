@@ -187,7 +187,7 @@ def search_knowledge_base(
     limit: int = 10
 ) -> Dict[str, Any]:
     """
-    Search ServiceNow knowledge base articles.
+    Search ServiceNow knowledge base articles using list_articles method.
     
     Args:
         search_term: Search term for knowledge articles
@@ -231,14 +231,51 @@ def search_knowledge_base(
             
         articles = articles_response.get("articles", [])
         
+        # Sanitize HTML content in articles to prevent JSON parsing issues
+        sanitized_articles = []
+        for article in articles:
+            if isinstance(article, dict):
+                sanitized_article = article.copy()
+                
+                # Sanitize HTML content in text field
+                if 'text' in sanitized_article and isinstance(sanitized_article['text'], dict):
+                    text_content = sanitized_article['text'].get('value', '')
+                    if text_content:
+                        # Remove HTML tags and clean up the content
+                        import re
+                        import html
+                        
+                        # First, decode HTML entities
+                        clean_text = html.unescape(text_content)
+                        
+                        # Remove HTML tags
+                        clean_text = re.sub(r'<[^>]+>', '', clean_text)
+                        
+                        # Remove extra whitespace and newlines
+                        clean_text = re.sub(r'\s+', ' ', clean_text).strip()
+                        
+                        # Escape any remaining problematic characters for JSON
+                        clean_text = clean_text.replace('"', '\\"').replace('\\', '\\\\')
+                        
+                        # Limit length to prevent huge responses
+                        if len(clean_text) > 1000:
+                            clean_text = clean_text[:1000] + "..."
+                        
+                        sanitized_article['text']['value'] = clean_text
+                        sanitized_article['text']['display_value'] = clean_text
+                
+                sanitized_articles.append(sanitized_article)
+            else:
+                sanitized_articles.append(article)
+        
         result = {
             "success": True,
-            "count": len(articles),
-            "articles": articles,
+            "count": len(sanitized_articles),
+            "articles": sanitized_articles,
             "timestamp": datetime.now().isoformat()
         }
         
-        logger.info(f"Retrieved {len(articles)} knowledge articles from ServiceNow")
+        logger.info(f"Retrieved {len(articles)} knowledge articles from ServiceNow using list_articles")
         return result
         
     except Exception as e:
