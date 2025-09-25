@@ -200,11 +200,21 @@ def search_knowledge_base(
     try:
         connection = get_snow_connection()
         
-        # Create a simple params object for the API call
+        # Create a simple params object for the list_articles API call
         class SimpleParams:
             def __init__(self, **kwargs):
+                # Set default values for all expected attributes
+                self.limit = kwargs.get('limit', 10)
+                self.offset = kwargs.get('offset', 0)
+                self.query = kwargs.get('query', '')
+                self.category = kwargs.get('category', '')
+                self.knowledge_base = kwargs.get('knowledge_base', '')
+                self.workflow_state = kwargs.get('workflow_state', '')
+                self.state = kwargs.get('state', '')
+                # Set any additional attributes
                 for key, value in kwargs.items():
-                    setattr(self, key, value)
+                    if not hasattr(self, key):
+                        setattr(self, key, value)
         
         params_dict = {
             "limit": limit,
@@ -253,23 +263,21 @@ def get_knowledge_article(article_id: str) -> Dict[str, Any]:
     try:
         connection = get_snow_connection()
         
-        # Get specific knowledge article using get_table method
-        # Try different possible table names for knowledge base
-        knowledge_tables = ['kb_knowledge', 'kb_article', 'knowledge']
-     
-       
-        article_data = None
-        # for table_name in knowledge_tables:
-        try:
-                response_data, headers, status_code = connection.get_article(article_id)
-                
-                if status_code == 200 and response_data.get('result'):
-                    article_data = response_data['result'][0]
-        except Exception as e:
-                logger.debug(f"Failed to query {article_id}: {e}")
+        # Use get_article method directly with article ID as string parameter
+        articles_response = connection.get_article(article_id)
+        
+        if not articles_response.get("success", False):
+            raise Exception(articles_response.get("message", "Failed to retrieve knowledge article"))
+            
+        # The get_article method returns the article data directly in the response
+        article_data = articles_response.get("result", {})
         
         if not article_data:
             raise Exception(f"Knowledge article {article_id} not found")
+        
+        # The result should be a dictionary, not a list
+        if isinstance(article_data, list) and article_data:
+            article_data = article_data[0]
         
         result = {
             "success": True,
