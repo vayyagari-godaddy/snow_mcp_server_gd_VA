@@ -228,36 +228,120 @@ def search_knowledge_base(
         articles_response = connection.list_articles(params_obj)
         logger.info(f"list_articles returned: {articles_response}")
         
-        if not articles_response.get("success", False):
-            raise Exception(articles_response.get("message", "Failed to search knowledge base"))
+        # Check if list_articles returned incomplete response (only success=True)
+        if isinstance(articles_response, dict) and articles_response.get("success") and len(articles_response.keys()) == 1:
+            # The list_articles method is not working correctly, call ServiceNow API directly
+            logger.info("list_articles returned incomplete response, calling ServiceNow API directly")
             
-        # Handle different response formats from list_articles
-        logger.info(f"Full articles_response: {articles_response}")
-        
-        if "articles" in articles_response:
-            articles = articles_response.get("articles", [])
-            logger.info(f"Found {len(articles)} articles in 'articles' field")
-        elif "result" in articles_response:
-            articles = articles_response.get("result", [])
-            logger.info(f"Found {len(articles)} articles in 'result' field")
+            try:
+                # Call ServiceNow API directly using get_table method
+                try:
+                    response_data = connection.get_table(
+                        table="kb_knowledge",
+                        rows=limit,
+                        offset=0,
+                        extra_params={
+                            "sysparm_display_value": "all"
+                        }
+                    )
+                    
+                    # Handle different return formats from get_table
+                    if len(response_data) == 2:
+                        api_response, status_code = response_data
+                    elif len(response_data) == 3:
+                        api_response, headers, status_code = response_data
+                    else:
+                        logger.error(f"Unexpected response format from get_table: {len(response_data)} values")
+                        api_response, status_code = None, 500
+                except Exception as unpack_error:
+                    logger.error(f"Error unpacking get_table response: {unpack_error}")
+                    api_response, status_code = None, 500
+                
+                if status_code == 200 and isinstance(api_response, dict) and "result" in api_response:
+                    raw_articles = api_response.get("result", [])
+                    logger.info(f"Found {len(raw_articles)} raw articles from direct ServiceNow API call")
+                else:
+                    logger.error(f"Direct ServiceNow API call failed: status={status_code}, response={api_response}")
+                    raw_articles = []
+            except Exception as e:
+                logger.error(f"Error calling ServiceNow API directly: {e}")
+                raw_articles = []
+            
+            # Process each article to extract detailed information
+            processed_articles = []
+            for article in raw_articles:
+                if isinstance(article, dict):
+                    # Extract key article information
+                    article_info = {
+                        'sys_id': article.get('sys_id', {}).get('value', '') if isinstance(article.get('sys_id'), dict) else article.get('sys_id', ''),
+                        'number': article.get('number', {}).get('value', '') if isinstance(article.get('number'), dict) else article.get('number', ''),
+                        'short_description': article.get('short_description', {}).get('value', '') if isinstance(article.get('short_description'), dict) else article.get('short_description', ''),
+                        'description': article.get('description', {}).get('value', '') if isinstance(article.get('description'), dict) else article.get('description', ''),
+                        'workflow_state': article.get('workflow_state', {}).get('value', '') if isinstance(article.get('workflow_state'), dict) else article.get('workflow_state', ''),
+                        'active': article.get('active', {}).get('value', '') if isinstance(article.get('active'), dict) else article.get('active', ''),
+                        'published': article.get('published', {}).get('value', '') if isinstance(article.get('published'), dict) else article.get('published', ''),
+                        'author': article.get('author', {}).get('display_value', '') if isinstance(article.get('author'), dict) else article.get('author', ''),
+                        'kb_knowledge_base': article.get('kb_knowledge_base', {}).get('display_value', '') if isinstance(article.get('kb_knowledge_base'), dict) else article.get('kb_knowledge_base', ''),
+                        'category': article.get('kb_category', {}).get('display_value', '') if isinstance(article.get('kb_category'), dict) else article.get('kb_category', ''),
+                        'sys_created_on': article.get('sys_created_on', {}).get('value', '') if isinstance(article.get('sys_created_on'), dict) else article.get('sys_created_on', ''),
+                        'sys_updated_on': article.get('sys_updated_on', {}).get('value', '') if isinstance(article.get('sys_updated_on'), dict) else article.get('sys_updated_on', ''),
+                    }
+                    
+                    # Add sanitized text if available
+                    if 'text' in article and isinstance(article['text'], dict):
+                        text_content = article['text'].get('value', '')
+                        if text_content:
+                            import re
+                            import html
+                            # Decode HTML entities
+                            clean_text = html.unescape(text_content)
+                            # Remove HTML tags
+                            clean_text = re.sub(r'<[^>]+>', '', clean_text)
+                            # Remove extra whitespace and newlines
+                            clean_text = re.sub(r'\s+', ' ', clean_text).strip()
+                            # Remove control characters
+                            clean_text = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', clean_text)
+                            # Limit length to prevent huge responses
+                            if len(clean_text) > 1000:
+                                clean_text = clean_text[:1000] + "..."
+                            article_info['text'] = clean_text
+                    
+                    processed_articles.append(article_info)
+            
+            articles = processed_articles
+            logger.info(f"Processed {len(processed_articles)} articles with detailed information")
         else:
-            articles = []
-            logger.warning("No articles found in response - checking response keys")
-            logger.info(f"Response keys: {list(articles_response.keys())}")
+            # Handle processed response from list_articles method
+            if not articles_response.get("success", False):
+                raise Exception(articles_response.get("message", "Failed to search knowledge base"))
+                
+            # Handle different response formats from list_articles
+            logger.info(f"Full articles_response: {articles_response}")
             
-            # Check if the response itself is a list of articles
-            if isinstance(articles_response, list):
-                articles = articles_response
-                logger.info(f"Response is a list with {len(articles)} articles")
+            if "articles" in articles_response:
+                articles = articles_response.get("articles", [])
+                logger.info(f"Found {len(articles)} articles in 'articles' field")
+            elif "result" in articles_response:
+                articles = articles_response.get("result", [])
+                logger.info(f"Found {len(articles)} articles in 'result' field")
             else:
-                # Check if there are any other keys that might contain articles
-                for key, value in articles_response.items():
-                    if isinstance(value, list) and len(value) > 0:
-                        logger.info(f"Found potential articles in key '{key}' with {len(value)} items")
-                        if isinstance(value[0], dict):
-                            articles = value
-                            logger.info(f"Using articles from key '{key}'")
-                            break
+                articles = []
+                logger.warning("No articles found in response - checking response keys")
+                logger.info(f"Response keys: {list(articles_response.keys())}")
+                
+                # Check if the response itself is a list of articles
+                if isinstance(articles_response, list):
+                    articles = articles_response
+                    logger.info(f"Response is a list with {len(articles)} articles")
+                else:
+                    # Check if there are any other keys that might contain articles
+                    for key, value in articles_response.items():
+                        if isinstance(value, list) and len(value) > 0:
+                            logger.info(f"Found potential articles in key '{key}' with {len(value)} items")
+                            if isinstance(value[0], dict):
+                                articles = value
+                                logger.info(f"Using articles from key '{key}'")
+                                break
         
         # Sanitize HTML content in articles to prevent JSON parsing issues
         sanitized_articles = []
